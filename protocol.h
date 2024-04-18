@@ -1,3 +1,5 @@
+#ifndef MACROS_H
+#define MACROS_H
 
 #ifdef __GCC_IEC_559 
 #pragma message("GCC ICE 559 defined...")
@@ -10,6 +12,38 @@
 
 
 #include <stdint.h>
+
+
+#define MES_NOT_AVAI 0
+#define MES_OK 1
+#define MES_NOK 2
+
+#define TYPE_STC_TEXT 1
+#define TYPE_STC_BIN 2
+#define TYPE_STC_NA 3
+#define TYPE_CTS_TEXT 21
+#define TYPE_CTS_BIN 22
+#define TYPE_CTS_NA 23
+
+#define UDP 17
+#define TCP 6
+
+#define ARITH_ADD 1
+#define ARITH_SUB 2
+#define ARITH_MUL 3
+#define ARITH_DIV 4
+#define ARITH_FADD 5
+#define ARITH_FSUB 6
+#define ARITH_FMUL 7
+#define ARITH_FDIV 8
+
+#define STATE_TIMEOUT 1
+#define STATE_CORRECT 2
+#define STATE_WARONG 3
+#define STATE_QUESTION 4
+
+#define MAX_QUES_LEN 120
+#define MAX_MESSAGE_LEN 1200
 
 /* 
    Used in both directions; if 
@@ -42,6 +76,16 @@ struct  __attribute__((__packed__)) calcMessage {
 
 };
 
+union dataSent{
+	char message[MAX_MESSAGE_LEN];
+	struct calcMessage CM;
+	struct calcProtocol CP;
+};//must ensure the length comes first
+#endif
+
+//time out 
+//wrong 
+//correct
 
 /* arith mapping in calcProtocol
 1 - add
