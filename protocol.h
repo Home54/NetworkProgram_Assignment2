@@ -101,7 +101,6 @@ other numbers are reserved
 
 */
 
-
 /* 
    calcMessage.type
    1 - server-to-client, text protocol
@@ -118,3 +117,4 @@ other numbers are reserved
    2 = NOT OK  // Reject 
 
 */
+

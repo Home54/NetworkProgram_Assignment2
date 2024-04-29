@@ -119,7 +119,7 @@ int main(int argc, char *argv[]){//userID pipe_In(for P write) pipe_Out(for P re
      exit(0);
   }
   
-  int rv=connect(sockfd,(struct sockaddr_in *)&client_addr,sizeof(client_addr));//point to the target client
+  int rv=connect(sockfd,(struct sockaddr *)&client_addr,sizeof(client_addr));//point to the target client
   if(rv<0) {
   	perror("connect");
   	exit(0);
