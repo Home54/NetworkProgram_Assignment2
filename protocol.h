@@ -77,10 +77,14 @@ struct  __attribute__((__packed__)) calcMessage {
 };
 
 union dataSent{
-	char message[MAX_MESSAGE_LEN];
 	struct calcMessage CM;
 	struct calcProtocol CP;
 };//must ensure the length comes first
+
+union Result {
+    int inserverResult;
+    double flserverResult;
+};
 #endif
 
 //time out 
