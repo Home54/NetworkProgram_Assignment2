@@ -3,8 +3,8 @@ all: libcalc test client server serverD
 
 
 
-servermain.o: servermain.cpp protocol.h
-	g++ -Wall -c servermain.cpp -I.
+servermain.o:
+	g++ -Wall servermain.cpp -o servermain
 
 servermainD.o: servermain.cpp protocol.h
 	g++ -Wall -c servermain.cpp -I. -DDEBUG -o servermainD.o

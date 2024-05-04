@@ -10,6 +10,8 @@
 #include "time.h"
 #include <math.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <netdb.h>
 
 //cpp headers 
 #include <stack>
@@ -18,7 +20,7 @@
 //local headers
 #include "protocol.h"
 
-#define PORT 2000
+
 #define MAX_JOB 10
 #define EXPIRE_TIME 10
 #define PRICISION 0.001
@@ -206,6 +208,7 @@ void alarm_handler(int sig){//called if time out
             exit(0);
     }
 	printf("Child:Client time out. At ID:%d\n",currJob);
+	//close(socket_desc);
 	exit(0);
 }
 
@@ -219,8 +222,10 @@ int main(int argc, char *argv[]){
   fd_set readfds, selectfds;
   FD_ZERO( & readfds);
   struct timeval timeToWait;
-    // Create UDP socket:
-  socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+#define IPV6
+#ifdef IPV4
+#define PORT 2000
+	socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     
   if(socket_desc < 0){
       printf("Error while creating socket\n");
@@ -239,7 +244,41 @@ int main(int argc, char *argv[]){
       exit(0);
     }
   printf("Done with binding\n");//create one udp in parent process
+#endif
+
+#ifdef IPV6
+#define PORT "2000"
+    // Create UDP socket:
+  struct addrinfo hints,*res,*p;
+  int rv;
   
+   memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC; // Use IPv4 or IPv6, whichever is available
+    hints.ai_socktype = SOCK_DGRAM; // UDP datagram sockets
+    hints.ai_protocol=IPPROTO_UDP;
+
+    if (( rv = getaddrinfo( NULL, PORT, &hints, &res)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // Loop through all the results and bind to the first we can
+    for(p = res; p != NULL; p = p->ai_next) {
+        if ((socket_desc = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("server: socket");
+            continue;
+        }
+
+        if (bind(socket_desc, p->ai_addr, p->ai_addrlen) == -1) {
+            close(socket_desc);
+            perror("server: bind");
+            continue;
+        }
+        break;
+    }
+  freeaddrinfo(res);
+#endif
+
   int jobNum=0;
   stack<int> availableID;//container
   
@@ -375,7 +414,7 @@ int main(int argc, char *argv[]){
   			}
 	   }else{
 	   		sendto(socket_desc,"ERROR",strlen("ERROR"),0,(struct sockaddr*)&client_addr, client_struct_length);
-	   		printf("The server does not support the form of C.\n");
+	   		printf("The server does not support the form of CM.\n");
 	   }
 	}else if( recvLen == proLength ){//for the further communication
 		//should not happened
