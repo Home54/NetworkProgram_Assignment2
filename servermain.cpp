@@ -20,7 +20,6 @@
 //local headers
 #include "protocol.h"
 
-
 #define MAX_JOB 10
 #define EXPIRE_TIME 10
 #define PRICISION 0.001
@@ -52,7 +51,6 @@ int pipefd[MAX_JOB][2];//for inter-process communication
 int socket_desc;
 struct sockaddr_in server_addr,client_addr;
 
-
 // 声明处理消息的函数
 void processMessage(union dataSent* cp, union Result**  result) {
 	Result* temp =(Result*)malloc(sizeof(union Result));
@@ -81,15 +79,15 @@ void processMessage(union dataSent* cp, union Result**  result) {
                 break;
             case 2: /*sub */
                 temp->inserverResult = htonl(ntohl(cp->CP.inValue1) - ntohl(cp->CP.inValue2));
-printf("result:%d.\n",ntohl(temp->inserverResult));
+				printf("result:%d.\n",ntohl(temp->inserverResult));
                 break;	
             case 3: /*mul */
                 temp->inserverResult = htonl(ntohl(cp->CP.inValue1) * ntohl(cp->CP.inValue2));
-printf("result:%d.\n",ntohl(temp->inserverResult));
+				printf("result:%d.\n",ntohl(temp->inserverResult));
                 break;
             case 4: /*div */
                 temp->inserverResult = htonl(ntohl(cp->CP.inValue1) / ntohl(cp->CP.inValue2));
-printf("result:%d.\n",ntohl(temp->inserverResult));
+				printf("result:%d.\n",ntohl(temp->inserverResult));
                 break;
             case 5: /*fadd */
                 temp->flserverResult = cp->CP.flValue1 + cp->CP.flValue2;
@@ -121,23 +119,22 @@ void sendStatusMessage( int type, int status) {
     // 根据类型设置消息类型
     switch (type) {
         case TYPE_STC_TEXT:
-			myMessage.type = htons(1); //1 = server-to-client, text protocol
+			myMessage.type = htons(TYPE_STC_TEXT); //1 = server-to-client, text protocol
             break;
         case TYPE_STC_BIN:
-			myMessage.type = htons(2); // 2 =server-to-client, binary protocol
+			myMessage.type = htons(TYPE_STC_BIN); // 2 =server-to-client, binary protocol
             break;
         case TYPE_STC_NA:
-			myMessage.type = htons(3); // 3 = server-to-client, N/A
+			myMessage.type = htons(TYPE_STC_NA); // 3 = server-to-client, N/A
             break;
         case TYPE_CTS_TEXT:
-			myMessage.type = htons(21); // 21 = client-to-server, text protocol
+			myMessage.type = htons(TYPE_CTS_TEXT); // 21 = client-to-server, text protocol
             break;
         case TYPE_CTS_BIN:
-			myMessage.type = htons(22); //    22 = client-to-server, binary protocol
+			myMessage.type = htons(TYPE_CTS_BIN); //    22 = client-to-server, binary protocol
             break;
         case TYPE_CTS_NA:
-            myMessage.type = htons(23);  // 23  client-to-serve, N/A
-
+            myMessage.type = htons(TYPE_CTS_NA);  // 23  client-to-serve, N/A
             break;
         default:
             fprintf(stderr, "Invalid message type\n");
@@ -203,28 +200,25 @@ char assignResultToAns(union dataSent* fromParent, union Result * ans) {
 }
 
 void alarm_handler(int sig){//called if time out
-	if (write(pipefd[currJob][1], &currJob, sizeof(currJob)) == -1) {
+	if (write(pipefd[0][1], &currJob, sizeof(currJob)) == -1) {
             perror("write");
             exit(0);
     }
 	printf("Child:Client time out. At ID:%d\n",currJob);
-	//close(socket_desc);
 	exit(0);
 }
 
-void child_handler(int sig){
-	while(waitpid(-1,NULL,WNOHANG)>0);
-}
+//void child_handler(int sig){
+//	while(waitpid(-1,NULL,WNOHANG)>0);
+//}
 
 int main(int argc, char *argv[]){
   union dataSent client_message;
-  socklen_t client_len;//for recv the client 
-  fd_set readfds, selectfds;
-  FD_ZERO( & readfds);
-  struct timeval timeToWait;
+  socklen_t client_len=sizeof(client_addr);//for recv the client 
+  memset(&client_addr,1,sizeof(client_addr));
 #define IPV6
 #ifdef IPV4
-#define PORT 2000
+#define PORT 10000
 	socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     
   if(socket_desc < 0){
@@ -247,7 +241,7 @@ int main(int argc, char *argv[]){
 #endif
 
 #ifdef IPV6
-#define PORT "2000"
+#define PORT "10000"
     // Create UDP socket:
   struct addrinfo hints,*res,*p;
   int rv;
@@ -257,7 +251,7 @@ int main(int argc, char *argv[]){
     hints.ai_socktype = SOCK_DGRAM; // UDP datagram sockets
     hints.ai_protocol=IPPROTO_UDP;
 
-    if (( rv = getaddrinfo( NULL, PORT, &hints, &res)) != 0) {
+    if (( rv = getaddrinfo( "127.0.0.1" , PORT, &hints, &res)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -287,19 +281,29 @@ int main(int argc, char *argv[]){
         perror("pipe");
         exit(0);
     }
-    FD_SET(pipefd[i][0], &readfds);
     availableID.push(MAX_JOB-i);
   }//for each child process create a pipe to communicate
+  //for( int i = 1 ; i < MAX_JOB ; i++ ) close(pipefd[i][0]);//close the pipe donot need
   
-  signal(SIGCHLD,child_handler);//deal with the died children
+  //signal(SIGCHLD,child_handler);//deal with the died children
 
   while(1){
   	int pid;//before add the job, in the parent process add the job number
   	int recvLen=0;
   	
 	printf("Parent:Before recv\n");
+	while(waitpid(-1,NULL,WNOHANG)>0){
+		int newID;
+    	if(read(pipefd[0][0],&newID,sizeof(newID)) < 0 ){
+	   		perror("read");
+	   	}
+	  	availableID.push(newID);
+	    jobNum--;
+	    joblist.erase(joblistR[newID]);
+    	joblistR.erase(newID);
+	}
 	memset(&client_message, 0 , sizeof(client_message));
-  	if ((recvLen=recvfrom(socket_desc, &client_message, sizeof(client_message),0, (struct sockaddr*)&client_addr, &client_struct_length)) < 0){
+  	if ((recvLen=recvfrom(socket_desc, &client_message, sizeof(client_message),0, (struct sockaddr*)&client_addr, &client_struct_length)) <= 0){
      	printf("Couldn't receive. At line %d\n",__LINE__);
      	printf("errno=%s\n",strerror(errno));
 		continue;
@@ -310,28 +314,10 @@ int main(int argc, char *argv[]){
 	//if so, register a job number for the client
 	if(recvLen==mesLength){
 	   if( ntohs(client_message.CM.type) == TYPE_CTS_BIN && ntohs(client_message.CM.message) == MES_NOT_AVAI && ntohs(client_message.CM.protocol)== UDP && ntohs(client_message.CM.major_version)== 1 && ntohs(client_message.CM.minor_version)==0 ){
-	   		selectfds=readfds;
-	   		timeToWait.tv_sec=0;
-			timeToWait.tv_usec=0;
-	   		int res=select(MAX_JOB+1,&selectfds,NULL,NULL,&timeToWait);
-	    	if(res<0) {
-	    		perror("select");
-	    	}
-	    
-	    	for(int i = 0 ; i < MAX_JOB ; i++ ){//handle the expire the child
-	    		if(FD_ISSET(pipefd[i][0],&selectfds)){
-	    			int newID;
-	    			if(read(pipefd[i][0],&newID,sizeof(newID)) < 0 ){
-	    				perror("read");
-	    			}
-	    			availableID.push(newID);
-	    			jobNum--;
-	    			joblist.erase(joblistR[newID]);
-	    			joblistR.erase(newID);
-	    		}
-	    	}//before alloc the new client free the old ones
 	    	
-	    	if(availableID.empty()){
+	    	//before alloc the new client free the old ones
+	    	
+	    	if(jobNum>=MAX_JOB){
 	   			printf("The server is full.\n");
 	   			continue;
 	   		}
@@ -357,6 +343,7 @@ int main(int argc, char *argv[]){
   			else if(pid==0){//in the child space 
   				//replace the child with another image 
   				printf("In the client.\n");
+  				//for( int i = 1 ; i < MAX_JOB ; i++ ) close(pipefd[i][1]);//close the pipe donot need
   				union dataSent fromParent;
 				union dataSent toClient;
 				union Result* ans =NULL;//the answer generated by the server
@@ -376,7 +363,7 @@ int main(int argc, char *argv[]){
             				exit(0);
         				}
 						//write a function to interpret the message
-        				intepreteCP( &fromParent.CP );
+        				//intepreteCP( &fromParent.CP );
     					//handle the answer : compare to the answer
 						memset(&ansC,0,sizeof(ansC));
 	 					char res = assignResultToAns(&fromParent, &ansC);//abstrct the answer from the client message // res represent the type of the result
@@ -404,12 +391,10 @@ int main(int argc, char *argv[]){
         				
         					free(ans);
      				}
-     //generate the question
-     //response to the client
-     				memset(&toClient,0,sizeof(toClient));
+     				memset(&toClient,0,sizeof(toClient));//generate the question
      				toClient.CP.id=htonl(currJob);
      				processMessage(&toClient, &ans);//wirte the message sent to the client
-	 				sendto(socket_desc,&toClient,sizeof(toClient),0,(struct sockaddr*)&client_addr, client_struct_length);
+	 				sendto(socket_desc,&toClient,sizeof(toClient),0,(struct sockaddr*)&client_addr, client_struct_length);//response to the client
   				}
   			}
 	   }else{

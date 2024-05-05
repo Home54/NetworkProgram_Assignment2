@@ -81,20 +81,21 @@ int main(int argc, char *argv[]){
   memset(&buffer,0, sizeof(buffer));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
+  hints.ai_protocol=IPPROTO_UDP;
   
-  if ((rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0) {
+  if (( rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     return 1;
   }
   printf("servinfo..\n");
   // loop through all the results and make a socket
+  struct sockaddr_in client_addr;
   for (int i=0;i<noClients;i++){
     for(p = servinfo; p != NULL; p = p->ai_next) {
       if ((sockfd[i] = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-	perror("socket");
-	continue;
+			perror("socket");
+			continue;
       }
-      
       break;
     }
     //    printf("servinfo prt2..\n");
@@ -109,7 +110,7 @@ int main(int argc, char *argv[]){
   socklen_t sa_len=sizeof(sa);
   
   char localIP[INET_ADDRSTRLEN];
-  char *myAdd;
+  const char *myAdd;
   memset(&localIP,0,sizeof(localIP));
   
   int bobsMother = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
@@ -124,12 +125,12 @@ int main(int argc, char *argv[]){
 	perror("getsockname failed.");
       }else {
 	myAdd=inet_ntop(sa.sin_family, &sa.sin_addr, localIP,sizeof(localIP));
-	//	printf("BobsMother (%s:%d) \n",localIP,ntohs(sa.sin_port));
+		printf("BobsMother (%s:%d) \n",localIP,ntohs(sa.sin_port));
       }
     }
-  }
-
-  close(bobsMother);
+   }
+   char temp[10];
+   sendto(bobsMother, temp, sizeof(temp), 0,p->ai_addr, p->ai_addrlen);
       
   /* Ready to send messages. */
   typedef struct calcMessage cMessage;
@@ -307,6 +308,8 @@ int main(int argc, char *argv[]){
 	printf("\tCP.flValue1= %g CP.flValue2= %g CP.flResult= %g \n", CP[i].flValue1, CP[i].flValue2, CP[i].flResult); 
     }
 	
+	getchar();
+	
     if ((numbytes = sendto(sockfd[i], &CP[i], sizeof(cProtocol), 0,p->ai_addr, p->ai_addrlen)) == -1) {
       perror("talker: sendto");
       if(fptr!=NULL)
@@ -441,24 +444,6 @@ int main(int argc, char *argv[]){
   }
   
   printf("Done, with good clients.\n");
-
-
-  bobsMother = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-  if (bobsMother == -1 ){
-    perror("Socket cant do nr2");
-  } else {
-    rv=connect(bobsMother,p->ai_addr,p->ai_addrlen);
-    if (rv == -1 ){
-      perror("Cant connect to socket..");
-    } else {
-      if( (s=getsockname(bobsMother,(struct sockaddr*)&sa,&sa_len) == -1) ){
-	perror("getsockname failed.");
-      }else {
-	myAdd=inet_ntop(sa.sin_family, &sa.sin_addr, localIP,sizeof(localIP));
-	//	printf("BobsMother (%s:%d) \n",localIP,ntohs(sa.sin_port));
-      }
-    }
-  }
 
   char myMsg[]="TEXT UDP 1.0";
 
